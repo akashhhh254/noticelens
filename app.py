@@ -9,11 +9,15 @@ from notice_lens.clash import find_clashes
 from notice_lens.ics_export import generate_ics
 from notice_lens.db import init_db, publish_notice, get_published_notice
 
+# Detect Vercel's read-only serverless environment
+IS_VERCEL = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
+
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5 MB max upload
 
-# Initialize database
-init_db()
+# Initialize database (skip on Vercel — read-only filesystem)
+if not IS_VERCEL:
+    init_db()
 
 
 @app.errorhandler(413)
@@ -28,11 +32,15 @@ def index():
 
 @app.route("/coordinator")
 def coordinator():
+    if IS_VERCEL:
+        return render_template("index.html", mode="student")
     return render_template("index.html", mode="coordinator")
 
 
 @app.route("/n/<notice_id>")
 def view_published(notice_id):
+    if IS_VERCEL:
+        return render_template("404.html", message="Publishing is not available in the hosted demo. Run locally to use this feature."), 404
     notice = get_published_notice(notice_id)
     if not notice:
         return render_template("404.html", message="Notice not found or expired."), 404
@@ -174,6 +182,9 @@ def api_export():
 
 @app.route("/api/publish", methods=["POST"])
 def api_publish():
+    if IS_VERCEL:
+        return jsonify({"error": "Publishing is not available in the hosted demo. Run locally to use this feature."}), 501
+
     if not request.is_json:
         return jsonify({"error": "Invalid or missing JSON."}), 400
 
@@ -197,6 +208,8 @@ def api_publish():
 
 @app.route("/api/notice/<notice_id>", methods=["GET"])
 def api_get_notice(notice_id):
+    if IS_VERCEL:
+        return jsonify({"error": "Publishing is not available in the hosted demo."}), 501
     notice = get_published_notice(notice_id)
     if not notice:
         return jsonify({"error": "Notice not found."}), 404
