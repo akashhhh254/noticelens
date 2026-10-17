@@ -201,3 +201,5 @@ NoticeLens/
 1. **Client-Side Tesseract OCR:** Direct extraction from phone screenshots and scanned paper flyers.
 2. **ERP & Timetable Sync:** One-click import from university portals (Moodle, Canvas, Google Classroom).
 3. **Department Coordinator Subscriptions:** Departmental SaaS license allowing faculty coordinators to publish official semester calendars directly to enrolled students.
+#   n o t i c e l e n s  
+ 
