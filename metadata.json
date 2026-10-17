@@ -1,0 +1,8 @@
+{
+  "name": "NoticeLens",
+  "description": "NoticeLens parses messy college notices into structured events, detects timetable clashes, and exports to .ics calendars.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

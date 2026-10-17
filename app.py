@@ -217,4 +217,9 @@ def api_get_notice(notice_id):
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 3000)))
+    parser.add_argument("--host", type=str, default=os.environ.get("HOST", "0.0.0.0"))
+    args, _ = parser.parse_known_args()
+    app.run(host=args.host, port=args.port, debug=False)
