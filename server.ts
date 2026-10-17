@@ -152,6 +152,9 @@ app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 
 // Static files
 app.use("/static", express.static(path.join(__dirname, "static")));
+app.use("/static", express.static(path.join(__dirname, "public", "static")));
+app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "static")));
 
 // Error handler for 413
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

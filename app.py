@@ -1,7 +1,7 @@
 import io
 import os
 from datetime import date
-from flask import Flask, jsonify, render_template, request, Response, abort
+from flask import Flask, jsonify, render_template, request, Response, abort, send_from_directory
 import pdfplumber
 
 from notice_lens.extractor import extract_events
@@ -12,8 +12,13 @@ from notice_lens.db import init_db, publish_notice, get_published_notice
 # Detect Vercel's read-only serverless environment
 IS_VERCEL = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5 MB max upload
+
+@app.route("/static/<path:filename>")
+def serve_static(filename):
+    static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+    return send_from_directory(static_dir, filename)
 
 # Initialize database (skip on Vercel — read-only filesystem)
 if not IS_VERCEL:
