@@ -1,0 +1,29 @@
+[
+  {
+    "title": "Internal Test 2",
+    "type": "test",
+    "date": "2026-11-13",
+    "start": "10:00",
+    "end": "11:30",
+    "venue": "Room 204",
+    "all_day": false
+  },
+  {
+    "title": "Lab records",
+    "type": "deadline",
+    "date": "2026-11-13",
+    "start": "12:00",
+    "end": null,
+    "venue": "department office",
+    "all_day": false
+  },
+  {
+    "title": "AI in Healthcare",
+    "type": "lecture",
+    "date": "2026-11-13",
+    "start": "11:00",
+    "end": "12:30",
+    "venue": "Seminar Hall",
+    "all_day": false
+  }
+]

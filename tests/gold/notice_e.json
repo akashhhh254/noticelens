@@ -1,0 +1,11 @@
+[
+  {
+    "title": "Quiz",
+    "type": "test",
+    "date": "2027-04-03",
+    "start": "10:00",
+    "end": "11:00",
+    "venue": "Room 12",
+    "all_day": false
+  }
+]

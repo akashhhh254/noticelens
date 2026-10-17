@@ -1,0 +1,29 @@
+[
+  {
+    "title": "Workshop",
+    "type": "lecture",
+    "date": "2026-11-18",
+    "start": "14:00",
+    "end": "16:00",
+    "venue": "Lab 3",
+    "all_day": false
+  },
+  {
+    "title": "report",
+    "type": "deadline",
+    "date": "2026-11-19",
+    "start": "17:00",
+    "end": null,
+    "venue": "",
+    "all_day": false
+  },
+  {
+    "title": "closed",
+    "type": "holiday",
+    "date": "2026-11-14",
+    "start": null,
+    "end": null,
+    "venue": "",
+    "all_day": true
+  }
+]

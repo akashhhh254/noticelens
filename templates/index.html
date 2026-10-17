@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="NoticeLens parses messy college notices into structured events, detects timetable clashes, and exports to .ics calendars.">
+  <title>{% if notice %}{{ notice.title }} - {% endif %}NoticeLens</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body data-mode="{{ mode }}" {% if notice %}data-published-id="{{ notice.id }}"{% endif %}>
+  <div class="app-wrapper">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-container">
+        <div class="brand">
+          <a href="/" class="brand-link">
+            <span class="brand-icon">🔍</span>
+            <span class="brand-name">NoticeLens</span>
+          </a>
+          <span class="badge badge-subtle">Rule-Based • No AI</span>
+        </div>
+        <nav class="nav-links">
+          <a href="/" class="nav-link {% if mode == 'student' %}active{% endif %}" id="navHome">Home</a>
+          <a href="/coordinator" class="nav-link {% if mode == 'coordinator' %}active{% endif %}" id="navCoordinator">For Coordinators</a>
+        </nav>
+      </div>
+      <p class="tagline">Paste a messy notice. Get clear events, clashes and a calendar file.</p>
+      {% if mode == 'coordinator' %}
+      <div class="coordinator-banner">
+        <strong>Coordinator Mode:</strong> Students open the link, see clash-checked events and add them to their calendar.
+      </div>
+      {% endif %}
+    </header>
+
+    <main class="main-content">
+      <!-- Error / Alert Banner -->
+      <div id="errorBanner" class="banner banner-error hidden" role="alert">
+        <span class="banner-icon">⚠️</span>
+        <span id="errorMessage" class="banner-text"></span>
+        <button type="button" class="banner-close" id="closeBanner" aria-label="Dismiss error">&times;</button>
+      </div>
+
+      <!-- Published Notice Header if in read-only mode -->
+      {% if mode == 'published' %}
+      <div class="published-header card">
+        <div class="published-title-row">
+          <span class="badge badge-published">Published Notice</span>
+          <span class="published-date">Created on {{ notice.created_at[:10] }}</span>
+        </div>
+        <h1 class="published-heading" id="publishedNoticeTitle">{{ notice.title }}</h1>
+        <p class="published-hint">Below are the verified events and clash status against your weekly timetable. You can export these directly to your device calendar.</p>
+      </div>
+      {% endif %}
+
+      <!-- Input Section (Hidden in published mode) -->
+      {% if mode != 'published' %}
+      <section class="card input-card" aria-labelledby="inputSectionTitle">
+        <h2 id="inputSectionTitle" class="visually-hidden">Notice Input</h2>
+        <div class="textarea-wrapper">
+          <label for="noticeText" class="input-label">College Notice Text</label>
+          <textarea
+            id="noticeText"
+            name="noticeText"
+            rows="6"
+            placeholder="Paste your college notice here (e.g. exam dates, submission deadlines, workshops...)"
+            aria-describedby="privacyNotice"
+          ></textarea>
+        </div>
+
+        <p id="privacyNotice" class="privacy-note">
+          🔒 Your notice is processed on this server and is not stored. Only coordinators who press Publish save a notice.
+        </p>
+
+        <div class="action-bar">
+          <div class="btn-group-main">
+            <button type="button" id="btnAnalyze" class="btn btn-primary">
+              <span class="btn-spinner hidden" id="analyzeSpinner"></span>
+              <span class="btn-text">Analyze Notice</span>
+            </button>
+            <button type="button" id="btnLoadExample" class="btn btn-secondary">Load example</button>
+            <button type="button" id="btnClear" class="btn btn-ghost">Clear</button>
+          </div>
+          <div class="btn-group-file">
+            <input type="file" id="pdfFileInput" accept=".pdf" style="display: none;" aria-label="Upload notice PDF">
+            <button type="button" id="btnUploadPdf" class="btn btn-outline">
+              <span class="btn-icon">📄</span> Upload PDF
+            </button>
+          </div>
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Coordinator Publish Section -->
+      {% if mode == 'coordinator' %}
+      <section id="publishSection" class="card publish-card hidden">
+        <div class="publish-header-row">
+          <h3>Publish Notice for Students</h3>
+          <p class="hint-text">Publishing generates a permanent shareable link with verified clash checking.</p>
+        </div>
+        <div class="publish-form">
+          <div class="form-group">
+            <label for="publishTitle">Notice Title</label>
+            <input type="text" id="publishTitle" placeholder="e.g. III-Year CSE Mid-Semester Schedule" class="form-control">
+          </div>
+          <button type="button" id="btnPublish" class="btn btn-success">Publish & Share</button>
+        </div>
+        <div id="publishedShareBox" class="share-box hidden">
+          <label>Student Share Link:</label>
+          <div class="share-input-group">
+            <input type="text" id="shareUrlInput" readonly class="form-control mono">
+            <button type="button" id="btnCopyLink" class="btn btn-secondary">Copy link</button>
+          </div>
+          <span id="copyFeedback" class="copy-feedback hidden">Copied to clipboard!</span>
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Loading State -->
+      <div id="loadingState" class="card loading-card hidden" aria-live="polite">
+        <div class="spinner"></div>
+        <p class="loading-text">Extracting events, parsing dates & checking schedule clashes...</p>
+      </div>
+
+      <!-- Results Area -->
+      <section id="resultsArea" class="results-area hidden" aria-labelledby="resultsHeading">
+        <div class="results-header-bar">
+          <h2 id="resultsHeading" class="section-heading">Extracted Events (<span id="eventCount">0</span>)</h2>
+          <div class="export-container">
+            <button type="button" id="btnExportIcs" class="btn btn-export" disabled>
+              <span class="btn-icon">📅</span> Export .ics Calendar
+            </button>
+            <span id="exportDisabledHint" class="export-hint">Add start times to all events to export.</span>
+          </div>
+        </div>
+
+        <!-- Highlighted Source Notice (Only if text available) -->
+        <div id="highlightedSection" class="card highlight-card">
+          <div class="highlight-header">
+            <h3>Original Notice with Source Highlights</h3>
+            <div class="legend">
+              <span class="legend-item"><span class="legend-box highlight-title"></span> Title</span>
+              <span class="legend-item"><span class="legend-box highlight-date"></span> Date</span>
+              <span class="legend-item"><span class="legend-box highlight-time"></span> Time</span>
+              <span class="legend-item"><span class="legend-box highlight-venue"></span> Venue</span>
+            </div>
+          </div>
+          <div id="highlightedText" class="highlighted-display"></div>
+        </div>
+
+        <!-- Clash Summary & Timeline Section -->
+        <div class="clash-timeline-grid">
+          <!-- Clash Summary & Table -->
+          <div class="card clash-card">
+            <div class="clash-header">
+              <h3>Schedule Clash Check</h3>
+              <div id="clashBadgeBox" class="clash-summary-box">
+                <span id="clashSummaryText">No clashes detected</span>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="clash-table" id="clashTable" aria-label="Schedule clash check results">
+                <thead>
+                  <tr>
+                    <th>Events Compared</th>
+                    <th>Status</th>
+                    <th>Details & Suggested Action</th>
+                  </tr>
+                </thead>
+                <tbody id="clashTableBody">
+                  <!-- Dynamic rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Visual Timeline -->
+          <div class="card timeline-card">
+            <div class="timeline-header">
+              <h3>Day Schedule Timeline</h3>
+              <p class="hint-text">Visual view of events, deadline points and overlaps.</p>
+            </div>
+            <div id="timelineContainer" class="timeline-container">
+              <!-- Dynamic SVG / CSS timelines per date -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Editable Event Cards -->
+        <div class="events-list-section">
+          <h3 class="events-subtitle">Event Details {% if mode != 'published' %}<span class="hint-text">(Click any field to edit)</span>{% endif %}</h3>
+          <div id="eventCardsContainer" class="event-cards-container">
+            <!-- Dynamic cards -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Weekly Timetable Panel -->
+      <section class="card timetable-card" aria-labelledby="timetableHeading">
+        <div class="timetable-header">
+          <div>
+            <h2 id="timetableHeading" class="section-heading">My Weekly Timetable</h2>
+            <p class="hint-text">Add your recurring college classes to detect personal timetable conflicts. Saved in your browser.</p>
+          </div>
+          <button type="button" id="btnClearTimetable" class="btn btn-ghost btn-sm">Clear Timetable</button>
+        </div>
+
+        <!-- Add Slot Form -->
+        <form id="timetableForm" class="timetable-form" novalidate>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="slotDay">Day</label>
+              <select id="slotDay" class="form-control" required>
+                <option value="Mon">Monday</option>
+                <option value="Tue">Tuesday</option>
+                <option value="Wed">Wednesday</option>
+                <option value="Thu">Thursday</option>
+                <option value="Fri" selected>Friday</option>
+                <option value="Sat">Saturday</option>
+                <option value="Sun">Sunday</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="slotStart">Start Time</label>
+              <input type="time" id="slotStart" class="form-control" value="10:30" required>
+            </div>
+            <div class="form-group">
+              <label for="slotEnd">End Time</label>
+              <input type="time" id="slotEnd" class="form-control" value="11:30" required>
+            </div>
+            <div class="form-group flex-grow">
+              <label for="slotSubject">Subject / Course Name</label>
+              <input type="text" id="slotSubject" class="form-control" placeholder="e.g. DBMS, OS, Compiler Design" value="DBMS" required>
+            </div>
+            <div class="form-group form-actions">
+              <button type="submit" id="btnAddSlot" class="btn btn-secondary">Add Class</button>
+            </div>
+          </div>
+          <div id="timetableFormError" class="inline-error hidden"></div>
+        </form>
+
+        <!-- Current Slots List -->
+        <div class="timetable-slots-wrapper">
+          <div id="timetableSlotsList" class="timetable-slots-list">
+            <!-- Dynamic slot chips -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Collapsible 'How It Works' Section (P15) -->
+      <section class="card explanation-card">
+        <details class="explanation-details">
+          <summary class="explanation-summary">
+            <span class="summary-title">ℹ️ How NoticeLens Works (Explainable & Private)</span>
+            <span class="summary-chevron">▼</span>
+          </summary>
+          <div class="explanation-content">
+            <div class="explanation-grid">
+              <div class="explanation-box">
+                <h4>1. Rule-Based & 100% Explainable</h4>
+                <p>Zero LLM calls, zero paid APIs, zero external network requests at runtime. Every extracted field links directly to character offsets in the original notice.</p>
+              </div>
+              <div class="explanation-box">
+                <h4>2. Date & Year Logic</h4>
+                <p>Numeric dates are read as <code>dd/mm</code>. A date missing a year inherits any future year in the notice, or defaults to the next upcoming occurrence.</p>
+              </div>
+              <div class="explanation-box">
+                <h4>3. Clashes & Deadlines</h4>
+                <p>Two timed events clash when intervals overlap. Deadlines are points in time: they clash only if they fall strictly inside another event (<code>start &le; deadline &lt; end</code>). Touching boundaries do not clash.</p>
+              </div>
+              <div class="explanation-box">
+                <h4>4. Flag Transparency</h4>
+                <p>When information is missing or inferred (assumed 60 min end, guessed AM/PM, no venue, missing time), amber warning badges show the exact assumption made.</p>
+              </div>
+            </div>
+          </div>
+        </details>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>NoticeLens, built for SETU 2026. Explainable college schedule intelligence.</p>
+    </footer>
+  </div>
+
+  {% if notice %}
+  <script>
+    window.INITIAL_PUBLISHED_NOTICE = {{ notice | tojson | safe }};
+  </script>
+  {% endif %}
+  <script src="/static/app.js"></script>
+</body>
+</html>
